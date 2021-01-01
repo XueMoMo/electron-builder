@@ -32,8 +32,8 @@ export default class SnapTarget extends Target {
   }
 
   private async createDescriptor(arch: Arch): Promise<any> {
-    if (!this.isElectronVersionGreaterOrEqualThen("4.0.0")) {
-      if (!this.isElectronVersionGreaterOrEqualThen("2.0.0-beta.1")) {
+    if (!this.isElectronVersionGreaterOrEqualThan("4.0.0")) {
+      if (!this.isElectronVersionGreaterOrEqualThan("2.0.0-beta.1")) {
         throw new InvalidConfigurationError("Electron 2 and higher is required to build Snap")
       }
 
@@ -47,6 +47,9 @@ export default class SnapTarget extends Target {
     const plugs = normalizePlugConfiguration(this.options.plugs)
 
     const plugNames = this.replaceDefault(plugs == null ? null : Object.getOwnPropertyNames(plugs), defaultPlugs)
+
+    const slots = normalizePlugConfiguration(this.options.slots)
+
     const buildPackages = asArray(options.buildPackages)
     const defaultStagePackages = getDefaultStagePackages()
     const stagePackages = this.replaceDefault(options.stagePackages, defaultStagePackages)
@@ -60,10 +63,6 @@ export default class SnapTarget extends Target {
       command: "command.sh",
       plugs: plugNames,
       adapter: "none",
-    }
-
-    if (options.slots != null) {
-      appDescriptor.slots = options.slots
     }
 
     const snap: any = safeLoad(await readFile(path.join(getTemplatePath("snap"), "snapcraft.yaml"), "utf-8"))
@@ -82,9 +81,24 @@ export default class SnapTarget extends Target {
     if (options.layout != null) {
       snap.layout = options.layout
     }
+    if (slots != null) {
+      appDescriptor.slots = Object.getOwnPropertyNames(slots)
+      for (const slotName of appDescriptor.slots) {
+        const slotOptions = slots[slotName]
+        if (slotOptions == null) {
+          continue
+        }
+        if (!snap.slots) {
+          snap.slots = {}
+        }
+        snap.slots[slotName] = slotOptions
+      }
+    }
+    
     deepAssign(snap, {
       name: snapName,
       version: appInfo.version,
+      title: options.title || appInfo.productName,
       summary: options.summary || appInfo.productName,
       description: this.helper.getDescription(options),
       architectures: [toLinuxArchString(arch, "snap")],
@@ -189,12 +203,12 @@ export default class SnapTarget extends Target {
     // snapcraft.yaml inside a snap directory
     const snapMetaDir = path.join(stageDir, this.isUseTemplateApp ? "meta" : "snap")
     const desktopFile = path.join(snapMetaDir, "gui", `${snap.name}.desktop`)
-    await this.helper.writeDesktopEntry(this.options, packager.executableName, desktopFile, {
+    await this.helper.writeDesktopEntry(this.options, packager.executableName + " %U", desktopFile, {
       // tslint:disable:no-invalid-template-strings
       Icon: "${SNAP}/meta/gui/icon.png"
     })
 
-    if (this.isElectronVersionGreaterOrEqualThen("5.0.0") && !isBrowserSandboxAllowed(snap)) {
+    if (this.isElectronVersionGreaterOrEqualThan("5.0.0") && !isBrowserSandboxAllowed(snap)) {
       args.push("--extraAppArgs=--no-sandbox")
       if (this.isUseTemplateApp) {
         args.push("--exclude", "chrome-sandbox")
@@ -227,7 +241,7 @@ export default class SnapTarget extends Target {
     })
   }
 
-  private isElectronVersionGreaterOrEqualThen(version: string) {
+  private isElectronVersionGreaterOrEqualThan(version: string) {
     return semver.gte(this.packager.config.electronVersion || "7.0.0", version)
   }
 }

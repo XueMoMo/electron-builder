@@ -1,8 +1,8 @@
 export enum Arch {
-  ia32, x64, armv7l, arm64
+  ia32, x64, armv7l, arm64, universal
 }
 
-export type ArchType = "x64" | "ia32" | "armv7l" | "arm64"
+export type ArchType = "x64" | "ia32" | "armv7l" | "arm64" | "universal"
 
 export function toLinuxArchString(arch: Arch, targetName: string): string {
   switch (arch) {
@@ -13,7 +13,7 @@ export function toLinuxArchString(arch: Arch, targetName: string): string {
     case Arch.armv7l:
       return targetName === "snap" || targetName === "deb" ? "armhf" : "armv7l"
     case Arch.arm64:
-      return "arm64"
+      return targetName === "pacman" ? "aarch64" : "arm64"
 
     default:
       throw new Error(`Unsupported arch ${arch}`)
@@ -38,7 +38,8 @@ export function archFromString(name: string): Arch {
       return Arch.arm64
     case "armv7l":
       return Arch.armv7l
-
+    case "universal":
+      return Arch.universal
     default:
       throw new Error(`Unsupported arch ${name}`)
   }
@@ -66,6 +67,11 @@ export function getArtifactArchName(arch: Arch, ext: string): string {
   else if (arch === Arch.armv7l) {
     if (ext === "snap") {
       archName = "armhf"
+    }
+  }
+  else if (arch === Arch.arm64) {
+    if (ext === "pacman" || ext === "rpm") {
+      archName = "aarch64"
     }
   }
   return archName

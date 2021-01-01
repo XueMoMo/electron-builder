@@ -21,7 +21,7 @@ export { Arch, getArchCliNames, toLinuxArchString, getArchSuffix, ArchType, arch
 export { AsyncTaskManager } from "./asyncTaskManager"
 export { DebugLogger } from "./DebugLogger"
 
-export { copyFile } from "./fs"
+export { copyFile, exists } from "./fs"
 export { asArray } from "builder-util-runtime"
 
 export { deepAssign } from "./deepAssign"
@@ -183,7 +183,7 @@ export function spawnAndWrite(command: string, args: Array<string>, data: string
         clearTimeout(timeout)
       }
       finally {
-        resolve()
+        resolve(undefined)
       }
     }, error => {
       try {
